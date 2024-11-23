@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Tareas</title>
+  <link rel="shortcut icon" href="/static/favicon.png" type="image/x-icon">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .tarea-container {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .tarea-container:hover {
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .tarea-proyecto {
+      border-left: 5px solid #6c757d;
+    }
+
+    .tarea-subtarea {
+      margin-left: 20px;
+      border-left: 5px solid #28a745;
+    }
+
+    .prioridad-alta {
+      border-right: 5px solid #dc3545;
+    }
+
+    .prioridad-baja {
+      border-right: 5px solid #ffc107;
+    }
+
+    .btn-agregar-subtarea {
+      font-size: 0.9rem;
+      padding: 0.25rem 0.5rem;
+    }
+
+    .oculto {
+      display: none;
+    }
+
+    .btn-borrar {
+      font-size: 0.9rem;
+      padding: 0.25rem 0.5rem;
+      margin-left: 0.5rem;
+    }
+
+    .acciones-tarea {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .filtros-container {
+      background-color: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .filtros-container .form-control {
+      max-width: 300px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1 class="text-center mb-4">Gestión de Proyectos y Tareas</h1>
+
+    <div class="mt-4">
+      <form id="tareaForm" class="mb-4">
+        <div class="row">
+          <!-- Primera columna -->
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="nombre" class="form-label">Nombre</label>
+              <input type="text" id="nombre" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label for="etiqueta" class="form-label">Tipo</label>
+              <select id="etiqueta" class="form-select" required>
+                <option value="proyecto">Proyecto</option>
+                <option value="tarea">Tarea</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="fecha" class="form-label">Fecha de vencimiento</label>
+              <input type="date" id="fecha" class="form-control" required>
+            </div>
+          </div>
+
+          <!-- Segunda columna -->
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="prioridad" class="form-label">Prioridad</label>
+              <select id="prioridad" class="form-select" required>
+                <option value="alta">Alta</option>
+                <option value="baja">Baja</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="responsables" class="form-label">Responsables</label>
+              <input type="text" id="responsables" class="form-control" placeholder="Separar por comas">
+            </div>
+            <div class="mb-3">
+              <label for="notas" class="form-label">Descripción</label>
+              <textarea id="notas" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-8 mx-auto">
+            <input type="hidden" id="id_padre" value="">
+            <button type="submit" class="btn btn-primary w-100" id="submitBtn">Agregar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-container">
+      <div class="row">
+        <div class="col-md-6">
+          <label for="busquedaNombre" class="form-label">Buscar por nombre:</label>
+          <input type="text" id="busquedaNombre" class="form-control" placeholder="Escriba el nombre a buscar">
+        </div>
+      </div>
+    </div>
+
+    <hr>
+    <div id="tareas" class="mt-4"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('tareaForm');
+    const tareasContainer = document.getElementById('tareas');
+    const submitBtn = document.getElementById('submitBtn');
+    const busquedaNombre = document.getElementById('busquedaNombre');
+    let modo = 'crear';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const nombre = document.getElementById('nombre').value;
+      const etiqueta = document.getElementById('etiqueta').value;
+      const fecha = document.getElementById('fecha').value;
+      const prioridad = document.getElementById('prioridad').value;
+      const notas = document.getElementById('notas').value;
+      const responsables = document.getElementById('responsables').value.split(',').map(r => r.trim()).filter(r => r);
+      const id_padre = document.getElementById('id_padre').value;
+
+      const datos = {
+        nombre,
+        etiqueta,
+        fecha,
+        prioridad,
+        notas,
+        responsables
+      };
+
+      if (etiqueta === 'tarea' && id_padre) {
+        datos.id_padre = parseInt(id_padre);
+      }
+
+      const response = await fetch('/tareas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        resetearFormulario();
+        cargarTareas();
+      } else {
+        alert(result.error);
+      }
+    });
+
+    function resetearFormulario() {
+      form.reset();
+      document.getElementById('id_padre').value = '';
+      document.getElementById('etiqueta').disabled = false;
+      submitBtn.textContent = 'Agregar';
+      modo = 'crear';
+    }
+
+    function prepararSubtarea(idPadre) {
+      document.getElementById('id_padre').value = idPadre;
+      document.getElementById('etiqueta').value = 'tarea';
+      document.getElementById('etiqueta').disabled = true;
+      submitBtn.textContent = 'Agregar Subtarea';
+      modo = 'subtarea';
+      document.getElementById('nombre').focus();
+    }
+
+    async function eliminarTarea(id) {
+      if (!confirm('¿Está seguro de que desea eliminar esta tarea y sus subtareas?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/tareas/${id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          await cargarTareas();
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Error al eliminar la tarea');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar la tarea');
+      }
+    }
+
+    async function cargarTareas() {
+      let url = '/tareas';
+      const params = new URLSearchParams();
+
+      const nombre = busquedaNombre.value.trim();
+      if (nombre) {
+        params.append('nombre', nombre);
+      }
+
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      tareasContainer.innerHTML = '';
+      if (data.tareas.length > 0) {
+        data.tareas.forEach((tarea) => {
+          const div = document.createElement('div');
+          div.className = `tarea-container ${tarea.etiqueta === 'proyecto' ? 'tarea-proyecto' : 'tarea-subtarea'} prioridad-${tarea.prioridad}`;
+
+          let contenido = `
+            <div class="d-flex justify-content-between align-items-start">
+              <h5>${tarea.nombre}</h5>
+              <div class="acciones-tarea">
+                ${tarea.puede_agregar_subtareas ?
+                  `<button class="btn btn-outline-primary btn-sm btn-agregar-subtarea" 
+                    onclick="prepararSubtarea(${tarea.id})">
+                    + Agregar Subtarea
+                  </button>` : ''}
+                <button class="btn btn-outline-danger btn-sm btn-borrar" 
+                  onclick="eliminarTarea(${tarea.id})">
+                  🗑️ Eliminar
+                </button>
+              </div>
+            </div>
+            <p class="mb-1"><strong>Prioridad:</strong> ${tarea.prioridad}</p>
+            <p class="mb-1"><strong>Fecha:</strong> ${tarea.fecha}</p>
+            ${tarea.notas ? `<p class="mb-1"><strong>Descripción:</strong> ${tarea.notas}</p>` : ''}
+            <p class="mb-1"><strong>Responsables:</strong> ${tarea.responsables.join(', ') || 'Sin responsables'}</p>
+          `;
+
+          div.innerHTML = contenido;
+          tareasContainer.appendChild(div);
+        });
+      } else {
+        tareasContainer.innerHTML = '<p class="text-center">No hay tareas o proyectos que coincidan con la búsqueda.</p>';
+      }
+    }
+
+    // Eventos para filtrar
+    let timeoutId;
+    const DELAY = 300; // ms
+
+    busquedaNombre.addEventListener('input', () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        cargarTareas();
+      }, DELAY);
+    });
+
+    cargarTareas();
+  </script>
+</body>
+
+</html>
