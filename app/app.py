@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, render_template
 from datetime import datetime
+import os
 
 class Nodo:
     def __init__(self, id, nombre, etiqueta, prioridad=None, fecha=None, notas=None, responsables=None, tags=None):
@@ -200,7 +201,11 @@ class Arbol_Binario:
         nodo.tags = [t for t in nodo.tags if t.lower() != tag]
         return nodo.tags
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(os.path.dirname(__file__), '../templates'),
+    static_folder=os.path.join(os.path.dirname(__file__), '../static')
+)
 arbol = Arbol_Binario()
 
 @app.route('/')
