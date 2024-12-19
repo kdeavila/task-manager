@@ -201,11 +201,7 @@ class Arbol_Binario:
         nodo.tags = [t for t in nodo.tags if t.lower() != tag]
         return nodo.tags
 
-app = Flask(
-    __name__,
-    template_folder=os.path.join(os.path.dirname(__file__), '../templates'),
-    static_folder=os.path.join(os.path.dirname(__file__), '../static')
-)
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
 arbol = Arbol_Binario()
 
 @app.route('/')
